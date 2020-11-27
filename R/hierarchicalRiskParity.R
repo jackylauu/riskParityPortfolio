@@ -48,11 +48,34 @@ getRecBipart <- function(Sigma, sorted_idx) {
   return(w)
 }
 
+#' @title Design of hierarchical risk parity portfolios
+#'
+#' @description This function designs a hierarchical risk parity portfolio
+#' based on Lopez de Prado's paper "Building Diversified Portfolios that
+#' Outperform Out-of-Sample" (2015).
+#' 
+#' @details This portfolio allocation method is a heuristic method which makes
+#' use of hierarchical clustering to seriate the correlation matrix of asset
+#' returns, then recursively allocates the portfolio weights via naive risk
+#' parity and "recursive bisection".
+#'
+#' @param asset_prices An XTS object of the asset prices.
+#' @param asset_returns An XTS object of the asset returns. 
+#' @param Sigma Covariance matrix of returns. If none is provided, the
+#'        covariance matrix will be computed from the returns.
+#' @param linkage String indicating the desired linkage function. Must be one
+#'        of c("single", "complete","average" ,"ward.D", "ward.D2" )
+#'
 #' @export
-hierarchicalRiskParity <- function(asset_prices, linkage='single') {
-  asset_returns <- diff(log(asset_prices))[-1]
-  Sigma <- cov(asset_returns)
-  rho <- cor(asset_returns)
+hierarchicalRiskParity <- function(asset_prices=NULL, asset_returns=NULL,
+                                  Sigma=NULL, linkage='single') {
+  if(is.null(Sigma) && is.null(asset_prices) && is.null(asset_returns))
+    stop("Invalid input. Please provide either a covariance matrix, asset returns or asset prices.")
+  if(is.null(asset_returns))
+    asset_returns <- diff(log(asset_prices))[-1]
+  if(is.null(Sigma))
+    Sigma <- cov(asset_returns)
+  rho <- cov2cor(Sigma)
   distance <- as.dist(sqrt((1-rho)/2))
 
   hcluster <- hclust(distance, method=linkage)

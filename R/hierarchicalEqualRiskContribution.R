@@ -92,7 +92,7 @@ getClusterCVaR <- function(asset_returns, cluster_idx) {
   w <- getInverseCVaR(cluster_returns)
 
   # portfolio returns is then an xts
-  portfolio_returns <- w %*% t(cluster_returns)
+  portfolio_returns <- w %*% t(cluster_returns) 
   portfolio_returns <- t(portfolio_returns)
 
   cluster_cvar <- PerformanceAnalytics::CVaR(portfolio_returns, p=conf, method="historical")
@@ -111,7 +111,7 @@ getClusterCDaR <- function(asset_returns, cluster_idx) {
   w <- w / sum(w)
 
   # portfolio returns is then an xts
-  portfolio_returns <- w %*% t(cluster_returns)
+  portfolio_returns <- w %*% t(cluster_returns) 
   portfolio_returns <- t(portfolio_returns)
 
   cluster_cdd <- PerformanceAnalytics::CDD(portfolio_returns, p=conf)
@@ -229,8 +229,31 @@ getPortfolioWeights <- function(hcluster, asset_returns, Sigma, num_clusters,
   return(w)
 }
 
+
+#' @title Design of hierarchical equal risk contribution portfolios
+#'
+#' @description This function designs hierarchical equal risk contribution
+#'              portfolios based on the method developed by Raffinot (2018).
+#'
+#' @details This portfolio allocation method makes use of hierarchical clustering
+#'          to assign portfolio weights.
+#'
+#' @param asset_prices An XTS object of the asset prices.
+#' @param asset_returns An XTS object of the asset returns. 
+#' @param Sigma Covariance matrix of returns. If none is provided, the
+#'        covariance matrix will be computed from the returns.
+#' @param risk_measure String indicating the desired risk measure for assigning
+#'        portfolio weights. Must be one of c('variance', 'standard-deviation',
+#'        'equal-weighting', 'CVaR', 'CDaR') 
+#' @param linkage String indicating the desired linkage function. Must be one
+#'        of c("single", "complete","average" ,"ward.D", "ward.D2" )
+#' @param num_clusters Integer value representing the optimal number of clusters.
+#'        If no value is given, the optimal number of clusters will be computed 
+#'        automatically.
+#'
 #' @export
-hierarchicalEqualRiskContribution <- function(asset_prices, 
+hierarchicalEqualRiskContribution <- function(asset_prices=NULL,
+                                              asset_returns=NULL, Sigma=NULL,
                                               risk_measure=c('variance', 
                                                              'standard-deviation', 
                                                              'equal-weighting',
@@ -238,9 +261,13 @@ hierarchicalEqualRiskContribution <- function(asset_prices,
                                               linkage='ward.D2', num_clusters=NULL) {
 
   risk_measure <- match.arg(risk_measure)
-  asset_returns <- diff(log(asset_prices))[-1]
-  Sigma <- cov(asset_returns)
-  rho <- cor(asset_returns)
+  if(is.null(asset_prices) && is.null(asset_returns))
+    stop("Asset prices and returns not given.")
+  if(is.null(asset_returns))
+    asset_returns <- diff(log(asset_prices))[-1]
+  if(is.null(Sigma))
+    Sigma <- cov(asset_returns)
+  rho <- cov2cor(Sigma)
   distance <- as.dist(sqrt(2 * (1-rho)))
 
   hcluster <- hclust(distance, method=linkage)
